@@ -2,10 +2,13 @@ from django.urls import path
 from .views import (
     owner_list, owner_detail,
     firearm_list, firearm_detail,
-    owner_firearms
+    owner_firearms,
+    user_list, user_detail
 )
 
 urlpatterns = [
+    path('users/', user_list, name='user-list'),
+    path('users/<int:pk>/', user_detail, name='user-detail'),
     # Owner endpoints
     path('owners/', owner_list, name='owner-list'),
     path('owners/<str:full_legal_name>/', owner_detail, name='owner-detail'),

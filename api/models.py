@@ -1,6 +1,29 @@
 from django.db import models
 
+from django.contrib.auth.models import AbstractUser
 
+
+class User(AbstractUser):
+    ROLE_CHOICES = [
+        ('administrator', 'Administrator'),
+        ('police_officer', 'Police Officer'),
+        ('client', 'Client'),
+    ]
+    
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='client')
+    date_of_birth = models.DateField(null=True, blank=True)
+    phone_number = models.CharField(max_length=20, blank=True, null=True)
+    email = models.EmailField(unique=True)
+
+    # Customize username requirements if needed
+    username = models.CharField(max_length=150, unique=True)
+
+    # Set email as the USERNAME_FIELD if you want email-based auth
+    # USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['email', 'role']
+
+    def __str__(self):
+        return f"{self.username} ({self.role})"
 
 class Owner(models.Model):
     LICENSE_STATUS_CHOICES = [

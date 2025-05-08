@@ -70,6 +70,8 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 
+AUTH_USER_MODEL = 'api.User'
+
 ROOT_URLCONF = 'backend.urls'
 
 
