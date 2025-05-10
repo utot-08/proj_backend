@@ -62,13 +62,23 @@ class UserUpdateSerializer(serializers.ModelSerializer):
             'phone_number',
             'is_active'
         ]
+class OwnerNestedSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Owner
+        fields = '__all__'  # Include whatever fields you want
+
 class FirearmSerializer(serializers.ModelSerializer):
     class Meta:
         model = Firearm
         fields = '__all__'
         extra_kwargs = {
-            'owner': {'required': False}  # Make owner optional during creation
+            'owner': {'required': False}  # This is the key change
         }
+    
+    def validate(self, data):
+        # Remove owner if it's present in the input
+        data.pop('owner', None)
+        return data
 # Basic serializer for simple operations
 class OwnerSerializer(serializers.ModelSerializer):
     class Meta:
@@ -120,3 +130,4 @@ class OwnerCreateSerializer(serializers.ModelSerializer):
             Firearm.objects.create(owner=owner, **firearm_data)
             
         return owner
+    

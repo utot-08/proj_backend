@@ -26,18 +26,33 @@ from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 @permission_classes([AllowAny])  # Allow anyone to access
 def user_list(request):
     if request.method == 'GET':
+        users = User.objects.all()
         
-        users = User.objects.all()  
+        # Get query parameters
+        search_query = request.query_params.get('search', None)
+        role_query = request.query_params.get('role', None)
+        
+        # Apply filters if they exist
+        if search_query:
+            users = users.filter(username__icontains=search_query)
+            # If you want to search first_name and last_name as well:
+            # users = users.filter(Q(username__icontains=search_query) | 
+            #                    Q(first_name__icontains=search_query) |
+            #                    Q(last_name__icontains=search_query))
+        
+        if role_query:
+            users = users.filter(role=role_query)
+            
         serializer = UserSerializer(users, many=True)
         return Response(serializer.data)
     
     elif request.method == 'POST':
-        
         serializer = UserCreateSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 @api_view(['GET', 'PUT', 'DELETE'])
 @permission_classes([AllowAny])  # Allow anyone to access
@@ -72,11 +87,14 @@ def owner_list(request):
         return Response(serializer.data)
     
     elif request.method == 'POST':
-        # Use the new OwnerCreateSerializer for POST
-        serializer = OwnerCreateSerializer(data=request.data)
+        # Handle both simple owner creation and owner+firearms creation
+        if 'firearms' in request.data:
+            serializer = OwnerCreateSerializer(data=request.data)
+        else:
+            serializer = OwnerSerializer(data=request.data)
+            
         if serializer.is_valid():
             owner = serializer.save()
-            # Return the full owner data with firearms
             response_serializer = OwnerWithFirearmsSerializer(owner)
             return Response(response_serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -112,8 +130,8 @@ def owner_detail(request, full_legal_name):
 @api_view(['GET', 'POST'])
 def firearm_list(request):
     if request.method == 'GET':
-        firearms = Firearm.objects.all()
-        serializer = FirearmSerializer(firearms, many=True)
+        firearms = Firearm.objects.all().select_related('owner')  # Optimize query with select_related
+        serializer = FirearmSerializer(firearms, many=True, context={'request': request})
         return Response(serializer.data)
     
     elif request.method == 'POST':
@@ -185,4 +203,35 @@ def update_firearm_status(request, serial_number):
             # You might want to add additional validation here
             serializer.save()
             return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)    
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+def owner_detail_by_id(request, pk):
+    try:
+        owner = Owner.objects.get(pk=pk)
+    except Owner.DoesNotExist:
+        return Response(
+            {"error": f"Owner with ID '{pk}' not found"},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    if request.method == 'GET':
+        serializer = OwnerWithFirearmsSerializer(owner)
+        return Response(serializer.data)        
+    
+
+@api_view(['GET'])
+def get_owner_by_id(request, pk):
+    """
+    Retrieve a specific owner by their primary key (ID)
+    """
+    try:
+        owner = Owner.objects.get(pk=pk)
+        serializer = OwnerWithFirearmsSerializer(owner)
+        return Response(serializer.data)
+    except Owner.DoesNotExist:
+        return Response(
+            {"error": f"Owner with ID {pk} not found"},
+            status=status.HTTP_404_NOT_FOUND
+        )
